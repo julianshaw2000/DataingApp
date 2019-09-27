@@ -1,0 +1,75 @@
+using System.Security.Claims;
+using System.Text;
+using System.Threading.Tasks;
+using DatingApp.API.Data;
+using DatingApp.API.Dtos;
+using DatingApp.API.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+
+namespace DatingApp.API.Controllers
+{
+
+    [Route("api/[controller]")]
+    [ApiController]
+
+    public class AuthController : ControllerBase
+    {
+        private readonly IAuthRepository _repo;
+        private readonly IConfiguration _config;
+
+        public AuthController(IAuthRepository repo, IConfiguration conf)
+        {
+            _repo = repo;
+            _config = conf;
+        }
+
+
+        [HttpPost("register999")]
+        public  void Register999(string Username, string Password)
+        {
+            var d = Username;
+
+            d=d + d;
+        }
+
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register(UserForRegisterDto userForRegisterDto)
+        {
+            
+            userForRegisterDto.Username  = userForRegisterDto.Username.ToLower();
+
+            if (await _repo.UserExists(userForRegisterDto.Username))
+                return BadRequest("Username already exist");
+            
+            var userToCreate = new User 
+            {
+                Username = userForRegisterDto.Username
+            };
+
+            var createdUser = await _repo.Register(userToCreate, userForRegisterDto.Password);
+
+            return StatusCode(201);  //temp
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(UserForLoginDto userForLoginDto)
+        {
+            var userFromRepo = await _repo.Login(userForLoginDto.Username, userForLoginDto.Password);
+
+            if (userFromRepo == null)
+                return Unauthorized();
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, userFromRepo.Id.ToString()),
+                new Claim(ClaimTypes.Name, userFromRepo.Username)
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(this._config.GetSection("AppSettings:Token").Value));
+            
+        }
+    }
+}
